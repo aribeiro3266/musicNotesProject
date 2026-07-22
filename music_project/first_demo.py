@@ -2,7 +2,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from music21 import converter, corpus, key, meter, metadata, note, stream
+from music21 import converter, corpus, instrument, key, meter, metadata, note, stream
+
+# GM program 0 (Acoustic Grand Piano) and GM program 52 (Choir Aahs) - a
+# single "sung" timbre standing in for both "ooh" and "ahh".
+INSTRUMENT_CLASSES = {
+    "piano": instrument.Piano,
+    "choir": instrument.Choir,
+}
 
 
 def _build_learning_score() -> stream.Score:
@@ -53,6 +60,20 @@ def select_parts(score: stream.Score, part_names: list[str]) -> stream.Score:
         if part.partName in part_names:
             selected.append(part)
     return selected
+
+
+def set_instrument(score: stream.Score, instrument_name: str) -> stream.Score:
+    """Set every part to play as the given instrument ('piano' or 'choir').
+
+    Any other value (including 'default') leaves the score untouched, so
+    playback falls back to the soundfont's default patch - typically Acoustic
+    Grand Piano already, since no instrument is set on these scores otherwise.
+    """
+    instrument_class = INSTRUMENT_CLASSES.get(instrument_name)
+    if instrument_class is not None:
+        for part in score.parts:
+            part.insert(0, instrument_class())
+    return score
 
 
 def write_midi_file(score: stream.Score, output_path: str | Path) -> Path:

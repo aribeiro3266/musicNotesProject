@@ -10,9 +10,11 @@ from music_project.first_demo import (
     load_bach_example,
     load_score_from_file,
     select_parts,
+    set_instrument,
     summarize_parts,
     write_midi_file,
 )
+from music_project.key_detector import detect_key_signature
 from music_project.omr import scan_image_to_musicxml
 
 app = FastAPI()
@@ -41,12 +43,19 @@ def get_parts() -> list[dict[str, object]]:
     return summarize_parts(score)
 
 
+@app.get("/api/key")
+def get_key() -> dict[str, object]:
+    score = load_bach_example()
+    return detect_key_signature(score)
+
+
 @app.get("/api/midi")
-def get_midi(parts: str | None = None) -> FileResponse:
+def get_midi(parts: str | None = None, instrument: str = "default") -> FileResponse:
     score = load_bach_example()
     if parts:
         score = select_parts(score, parts.split(","))
-    suffix = parts.replace(",", "_") if parts else "all"
+    score = set_instrument(score, instrument)
+    suffix = f"{parts.replace(',', '_') if parts else 'all'}_{instrument}"
     midi_path = Path(f"demo_output_{suffix}.mid")
     write_midi_file(score, midi_path)
     return FileResponse(
@@ -57,11 +66,12 @@ def get_midi(parts: str | None = None) -> FileResponse:
 
 
 @app.get("/api/audio")
-def get_audio(parts: str | None = None) -> FileResponse:
+def get_audio(parts: str | None = None, instrument: str = "default") -> FileResponse:
     score = load_bach_example()
     if parts:
         score = select_parts(score, parts.split(","))
-    suffix = parts.replace(",", "_") if parts else "all"
+    score = set_instrument(score, instrument)
+    suffix = f"{parts.replace(',', '_') if parts else 'all'}_{instrument}"
     midi_path = Path(f"demo_output_{suffix}.mid")
     wav_path = Path(f"demo_output_{suffix}.wav")
     write_midi_file(score, midi_path)
@@ -89,24 +99,40 @@ def upload_piece(file: UploadFile) -> dict[str, object]:
         raise HTTPException(status_code=422, detail=f"Could not read this scan: {exc}") from exc
 
     score = load_score_from_file(mxl_path)
-    return {"piece_id": piece_id, "parts": summarize_parts(score)}
+    return {
+        "piece_id": piece_id,
+        "parts": summarize_parts(score),
+        "key": detect_key_signature(score),
+    }
 
 
 @app.get("/api/pieces/{piece_id}/midi")
-def get_piece_midi(piece_id: str) -> FileResponse:
+def get_piece_midi(
+    piece_id: str, parts: str | None = None, instrument: str = "default"
+) -> FileResponse:
     mxl_path = _piece_mxl_path(piece_id)
     score = load_score_from_file(mxl_path)
-    midi_path = UPLOADS_DIR / piece_id / "score.mid"
+    if parts:
+        score = select_parts(score, parts.split(","))
+    score = set_instrument(score, instrument)
+    suffix = f"{parts.replace(',', '_') if parts else 'all'}_{instrument}"
+    midi_path = UPLOADS_DIR / piece_id / f"score_{suffix}.mid"
     write_midi_file(score, midi_path)
-    return FileResponse(midi_path, media_type="audio/midi", filename=f"{piece_id}.mid")
+    return FileResponse(midi_path, media_type="audio/midi", filename=f"{piece_id}_{suffix}.mid")
 
 
 @app.get("/api/pieces/{piece_id}/audio")
-def get_piece_audio(piece_id: str) -> FileResponse:
+def get_piece_audio(
+    piece_id: str, parts: str | None = None, instrument: str = "default"
+) -> FileResponse:
     mxl_path = _piece_mxl_path(piece_id)
     score = load_score_from_file(mxl_path)
-    midi_path = UPLOADS_DIR / piece_id / "score.mid"
-    wav_path = UPLOADS_DIR / piece_id / "score.wav"
+    if parts:
+        score = select_parts(score, parts.split(","))
+    score = set_instrument(score, instrument)
+    suffix = f"{parts.replace(',', '_') if parts else 'all'}_{instrument}"
+    midi_path = UPLOADS_DIR / piece_id / f"score_{suffix}.mid"
+    wav_path = UPLOADS_DIR / piece_id / f"score_{suffix}.wav"
     write_midi_file(score, midi_path)
     render_to_wav(midi_path, wav_path)
-    return FileResponse(wav_path, media_type="audio/wav", filename=f"{piece_id}.wav")
+    return FileResponse(wav_path, media_type="audio/wav", filename=f"{piece_id}_{suffix}.wav")
