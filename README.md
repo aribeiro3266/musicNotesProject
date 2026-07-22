@@ -1,6 +1,6 @@
 # musicNotes
 
-A small Python project for learning how to turn sheet music into playable audio.
+This Python project is intended to take a piece of sheet music and parse the four choral parts to create distinct audio files that can be listed to alone or with each other to make it easier for chorus singers to learn their music. As a former singer, my inspiration for this idea was to make free software that could make chorus more accessible to those who may not have a music background.
 
 ## Current goal
 
