@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.mid
+*.wav
+*.midi
+
+node_modules/
+.next/
+.env.local
+
+assets/
+uploads/
+
+.claude/

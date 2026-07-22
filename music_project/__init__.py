@@ -1,0 +1,1 @@
+"""Music learning project package."""
